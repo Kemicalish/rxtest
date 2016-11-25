@@ -1,0 +1,7 @@
+work/node_modules
+work/dev
+work/staging
+work/production
+work/dist
+work/build
+node_modules
