@@ -16,7 +16,7 @@ conf = require('./conf');
 gulp.task('scripts', () => {
 
  var transforms = [
-        ['babelify', {presets: ['es2015']}],
+        ['babelify', {presets: ['es2015', 'react']}],
        'hbsfy',
        'require-globify'];
 
