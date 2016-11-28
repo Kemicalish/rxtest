@@ -12,10 +12,7 @@ export class PostItemList extends React.Component {
       return (
         <div className="post-list" >
           <div>List Title: {this.props.title}</div>
-          <div>Raw Items: {this.props.posts}</div>
-          {this.props.posts.map(post => (
-                <PostItem key={post.key} title={post.title} />
-            ))}
+          {this.props.posts}
         </div>
       );
     }
@@ -25,7 +22,7 @@ export class PostItemList extends React.Component {
 export class PostItem extends React.Component {
     render(){
       return (
-        <div className="post" >Post Title: {this.props.title}</div>
+        <div className="item" >[{this.props.id}] {this.props.title}</div>
       );
     }
 }

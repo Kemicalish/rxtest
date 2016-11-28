@@ -30,7 +30,7 @@ const _default_blog_name = 'bourjois-en-uk';
 import { PostItem, PostItemList}  from './react/postItem.js'
 
 
-const posts = [
+var posts = [
 	{
 		id:1,
 		title:'post 1'
@@ -45,22 +45,22 @@ const posts = [
 	},
 ];
 
-const postsComponents = posts.map(p => (<PostItem key={p.id} title={p.title} />))
-
-function App() {
-  return (
-	<div className="my-app">
-		<div>APP</div>
-		<PostItemList title='ma liste' posts={postsComponents} />
-	</div>
-  );
-}
+var postsComponents = posts.map(p => (<PostItem key={p.id} title={p.title} />))
 
 ReactDOM.render(
-  <App />,
+  <PostItemList posts={postsComponents} />,
   document.getElementById('react-root')
 );
 
+setTimeout(()=>{
+	console.log('AGAIN!');
+	posts[0].title = 'MY NEW TITLE!';
+	postsComponents = posts.map(p => (<PostItem key={p.id} title={p.title} />))
+	ReactDOM.render(
+		<PostItemList posts={postsComponents} />,
+		document.getElementById('react-root')
+	);
+},2000)
 
 //Probably a very bad way to create a Producer, it's just for test purpose
 //TODO: check best practice (should also check best object Instantiation practices)'
@@ -99,9 +99,21 @@ let coverPostsStream = formatedPostStream.filter(post => {
 	return _.find(post.tags, t => t.toLowerCase() === 'type:cover');
 });
 
+
+homePostsStream.subscribe(posts => {
+	console.log(posts);
+	let postElems = posts.map(p => (<PostItem key={p.id} id={p.id} title={p.title} />) ); 
+	ReactDOM.render(
+		<PostItemList posts={postElems} />,
+		$('.items-home')[0]
+	);
+});
+
+/*
 homePostsStream.subscribe(posts => $('.items-home').html(itemsTPL({
 	posts:posts
 })));
+*/
 //coverPostsStream.subscribe(p => $('.items-stories').html(itemTPL(p)));
 
 var bindLinks = (entry) => new Promise((resolve, reject) => {
