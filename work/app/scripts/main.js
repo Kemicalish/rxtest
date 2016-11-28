@@ -14,6 +14,8 @@ const itemsTPL		= require('../templates/items.hbs');
 const postItemReact	= require('./react/postList');
 
 import Rx from 'rxjs/Rx';
+import React from 'react';
+import ReactDOM from 'react-dom';
 
 router.addRoute('', displayHome ); 
 router.addRoute('news', displayNews ); 
@@ -25,22 +27,32 @@ const _default_blog_id = 'bourjois-en-uk.tumblr.com'; //'kemicalish.tumblr.com';
 const _default_api_key = 's69VTn11sdita3PVXC39QIuSzuc7rNjI814UDygEnd6knXo1dQ'; //'h4kvLlA1sViuXYHOqWrtyrHEgB4JlgP73a8qR7TIzsqpy8IIS8';
 const _default_blog_name = 'bourjois-en-uk';
 
-import PostItem from './react/postItem.js'
-import React from 'react';
-import ReactDOM from 'react-dom';
+import { PostItem, PostItemList}  from './react/postItem.js'
 
-function Welcome(props) {
-  return <h1>Hello, {props.name}</h1>;
-}
+
+const posts = [
+	{
+		id:1,
+		title:'post 1'
+	},
+	{
+		id:2,
+		title:'post 2'
+	},
+	{
+		id:3,
+		title:'post 3'
+	},
+];
+
+const postsComponents = posts.map(p => (<PostItem key={p.id} title={p.title} />))
 
 function App() {
   return (
-    <div>
-	TEST
-      <PostItem name="bob"/>
-      <PostItem name="jim"/>
-      <PostItem name="john"/>
-    </div>
+	<div className="my-app">
+		<div>APP</div>
+		<PostItemList title='ma liste' posts={postsComponents} />
+	</div>
   );
 }
 
