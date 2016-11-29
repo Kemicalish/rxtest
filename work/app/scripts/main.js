@@ -62,18 +62,8 @@ setTimeout(()=>{
 	);
 },2000)
 
-//Probably a very bad way to create a Producer, it's just for test purpose
-//TODO: check best practice (should also check best object Instantiation practices)'
-function TumblrEndpointProducer(){
-	this.push = args => _.each(pushers, p => p(args));
-	var pushers = [] ;
-	this.addPush = function(func){pushers.push(func);}
-};
 
-let tumblrEndpointProducer = new TumblrEndpointProducer();
-let tumblrApiEndpointStream = Rx.Observable.create(observer =>{
-	 tumblrEndpointProducer.addPush( endpoint => observer.next(endpoint) );
-});
+var tumblrApiEndpointStream = new Rx.Subject();
 
 let tumblrResponseStream =  tumblrApiEndpointStream.flatMap(endpoint => Rx.Observable.fromPromise($.getJSON(endpoint)));
 
@@ -82,11 +72,16 @@ let rawPostStream = tumblrResponseStream.flatMap(response => Rx.Observable.creat
 }));
 
 let formatedPostStream = rawPostStream.flatMap(post => Rx.Observable.create(observer =>{
-	observer.next({
-		id:post.id,
-		title:post.title,
-		tags:post.tags
-	});
+	try{
+		observer.next({
+			id:post.id,
+			title:post.title,
+			tags:post.tags
+		});
+	}
+	catch(err){
+		observer.error(err);
+	}
 }))
 
 let homePostsStream = formatedPostStream.filter(post => {
@@ -126,15 +121,15 @@ var bindLinks = (entry) => new Promise((resolve, reject) => {
 
 function displayHome(){	
 	console.log('HOME!');
-	tumblrEndpointProducer.push(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=home&notes_info=true`);
+	tumblrApiEndpointStream.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=home&notes_info=true`);
 }
 
 function displayNews(){	
-	tumblrEndpointProducer.push(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=type:PROMO&notes_info=true`);
+	tumblrApiEndpointStream.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=type:PROMO&notes_info=true`);
 } 
 
 function displayLook(){	
-	tumblrEndpointProducer.push(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=type:COVER&notes_info=true`);
+	tumblrApiEndpointStream.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=type:COVER&notes_info=true`);
 } 
 
 
