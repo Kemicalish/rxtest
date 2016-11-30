@@ -26,7 +26,12 @@ router.addRoute('covers', displayCovers );
 router.addRoute('look/{lookId}', displayStory ); 
 router.addRoute('makeup', displayMakeup ); 
 
-//const scanList = [(list, post) => list.concat(post), []]; 
+//TODO: paginate home
+//TODO: add covers button loading stories
+//TODO: filter makeup by categories 
+//TODO: buffer posts before rendering
+//TODO: change BG Color based on the time the post was retrieved
+
 
 const scanList = [(list, post) => {
 	return _.find(list, p => p.id === post.id) ? list : list.concat(post);
@@ -58,8 +63,6 @@ let rawPost$ = tumblrResponse$
 			return Rx.Observable.throw(err);
 		}
 	})
-	
-
 
 let formatedPost$ = rawPost$
 	.flatMap(post => Rx.Observable.create(observer => {
@@ -105,11 +108,11 @@ function renderStream(stream, selector, title){
 }
 
 let streams = [
-	[homeFullPosts$, '.items-home', 'HOME POSTS'],
-	[storyPosts$, '.items-stories', 'STORY POSTS'],
-	[coverPosts$, '.items-covers', 'COVER POSTS'],
-	[promoPosts$, '.items-news', 'NEWS POSTS'],
-	[makeupPosts$, '.items-makeup', 'MAKEUP POSTS'],
+	[homeFullPosts$, 	'.items-home', 		'HOME POSTS'],
+	[storyPosts$, 		'.items-stories', 	'STORY POSTS'],
+	[coverPosts$, 		'.items-covers', 	'COVER POSTS'],
+	[promoPosts$, 		'.items-news', 		'NEWS POSTS'],
+	[makeupPosts$, 		'.items-makeup', 	'MAKEUP POSTS'],
 ]
 
 _.each(streams, s => renderStream(...s));

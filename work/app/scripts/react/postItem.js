@@ -5,7 +5,7 @@ import ReactDOM from 'react-dom';
 export class PostItemList extends React.Component {
     constructor(props) {
       super(props);
-      this.state = {posts: [], text: ''};
+      this.state = {posts: []};
     }
 
     render(){
@@ -22,7 +22,7 @@ export class PostItemList extends React.Component {
 export class PostItem extends React.Component {
     render(){
       return (
-        <div className="item">
+        <div className="post-item">
           <div className="post-img" style={{backgroundImage:`url(${this.props.post.img})`}} ></div> [{this.props.post.id}] {this.props.post.title}
         </div>
       );
