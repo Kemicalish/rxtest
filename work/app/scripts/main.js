@@ -113,27 +113,26 @@ let makeupPosts$ = formatedPost$
 		return _.find(post.tags, t => t.toLowerCase() === 'type:makeup');
 	});
 
-homePosts$
-		.merge(coverPosts$)
-		.scan(...scanList)
-		.subscribe(renderPosts('.items-home', 'HOME POSTS'), console.error);
+let homeFullPosts$ = homePosts$
+		.merge(coverPosts$);
 
 
-storyPosts$
-		.scan(...scanList)
-		.subscribe(renderPosts('.items-stories', 'STORY POSTS'), console.error);
 
-coverPosts$
+function renderStream(stream, selector, title){
+	stream
 		.scan(...scanList)
-		.subscribe(renderPosts('.items-covers', 'COVER POSTS'), console.error);
+		.subscribe(renderPosts(selector, title), console.error);
+}
 
-promoPosts$
-		.scan(...scanList)
-		.subscribe(renderPosts('.items-news', 'NEWS POSTS'), console.error);
+let streams = [
+	[homeFullPosts$, '.items-home', 'HOME POSTS'],
+	[storyPosts$, '.items-stories', 'STORY POSTS'],
+	[coverPosts$, '.items-covers', 'COVER POSTS'],
+	[promoPosts$, '.items-news', 'NEWS POSTS'],
+	[makeupPosts$, '.items-makeup', 'MAKEUP POSTS'],
+]
 
-makeupPosts$
-		.scan(...scanList)
-		.subscribe(renderPosts('.items-makeup', 'MAKEUP POSTS'), console.error);
+_.each(streams, s => renderStream(...s));
 
 
 function displayHome(){	
