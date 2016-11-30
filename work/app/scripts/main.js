@@ -26,7 +26,8 @@ const _default_blog_name = 'bourjois-en-uk';
 
 router.addRoute('', displayHome ); 
 router.addRoute('news', displayNews ); 
-router.addRoute('look/{lookId}', displayLook ); 
+router.addRoute('covers', displayCovers ); 
+router.addRoute('look/{lookId}', displayStory ); 
 router.addRoute('makeup', displayMakeup ); 
 
 //const scanList = [(list, post) => list.concat(post), []]; 
@@ -83,11 +84,22 @@ let homePosts$ = formatedPost$
 		return _.find(post.tags, t => t.toLowerCase() === 'home');
 	});
 
+let storyPosts$ = formatedPost$
+	.filter(post => {
+		console.log('storyPosts$', post.id, post.token);
+		return _.find(post.tags, t => t.toLowerCase().startsWith('look:'));
+	});
+
 let coverPosts$ = formatedPost$
 	.filter(post => {
 		console.log('coverPosts$', post.id, post.token);
 		return _.find(post.tags, t => t.toLowerCase() === 'type:cover');
 	});
+
+//retrieve cover attached posts // get max tumblr limit for one api call for load optimization but we need just the last one
+coverPosts$.subscribe(post => {
+	tumblrApiEndpoint$.next(getEndpointFromTag(post.storyId));
+})
 
 let promoPosts$ = formatedPost$
 	.filter(post => {
@@ -107,9 +119,13 @@ homePosts$
 		.subscribe(renderPosts('.items-home', 'HOME POSTS'), console.error);
 
 
+storyPosts$
+		.scan(...scanList)
+		.subscribe(renderPosts('.items-stories', 'STORY POSTS'), console.error);
+
 coverPosts$
 		.scan(...scanList)
-		.subscribe(renderPosts('.items-stories', 'COVER POSTS'), console.error);
+		.subscribe(renderPosts('.items-covers', 'COVER POSTS'), console.error);
 
 promoPosts$
 		.scan(...scanList)
@@ -131,7 +147,12 @@ function displayNews(){
 	tumblrApiEndpoint$.next(getEndpointFromTag('type:PROMO'));
 } 
 
-function displayLook(){
+function displayStory(storyId){
+	console.log('STORY!');	
+	tumblrApiEndpoint$.next(getEndpointFromTag('slug:paris-nude-attitude'));
+}
+
+function displayCovers(){
 	console.log('COVERS!');	
 	tumblrApiEndpoint$.next(getEndpointFromTag('type:COVER'));
 } 
