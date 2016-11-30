@@ -7,10 +7,6 @@ const constants		= require('./constants');
 const device		= require('./core/device'); 
 const router		= require('./core/router');
 
-const itemTPL		= require('../templates/item.hbs');
-const itemsTPL		= require('../templates/items.hbs');
-
-
 const postItemReact	= require('./react/postList');
 
 import Rx from 'rxjs/Rx';
@@ -78,43 +74,27 @@ let formatedPost$ = rawPost$
 	}))
 
 
-let homePosts$ = formatedPost$
-	.filter(post => {
-		console.log('homePosts$', post.id, post.token);
-		return _.find(post.tags, t => t.toLowerCase() === 'home');
-	});
+function postsByTag(tag, startsWith){
+	return formatedPost$
+				.filter(post => {
+					console.log(tag, post.id, post.token);
+					return _.find(post.tags, t => startsWith ? t.startsWith(tag) : t.toLowerCase() === tag );
+				});
+}
 
-let storyPosts$ = formatedPost$
-	.filter(post => {
-		console.log('storyPosts$', post.id, post.token);
-		return _.find(post.tags, t => t.toLowerCase().startsWith('look:'));
-	});
+let homePosts$ = postsByTag('home');
+let storyPosts$ = postsByTag('look:', true);
+let coverPosts$ = postsByTag('type:cover');
+let promoPosts$ = postsByTag('type:promo');
+let makeupPosts$ = postsByTag('type:makeup');
 
-let coverPosts$ = formatedPost$
-	.filter(post => {
-		console.log('coverPosts$', post.id, post.token);
-		return _.find(post.tags, t => t.toLowerCase() === 'type:cover');
-	});
+let homeFullPosts$ = homePosts$
+		.merge(coverPosts$);
 
 //retrieve cover attached posts // get max tumblr limit for one api call for load optimization but we need just the last one
 coverPosts$.subscribe(post => {
 	tumblrApiEndpoint$.next(getEndpointFromTag(post.storyId));
 })
-
-let promoPosts$ = formatedPost$
-	.filter(post => {
-		console.log('promoPosts$', post.id, post.token);
-		return _.find(post.tags, t => t.toLowerCase() === 'type:promo');
-	});
-
-let makeupPosts$ = formatedPost$
-	.filter(post => {
-		console.log('makeupPosts$', post.id, post.token);
-		return _.find(post.tags, t => t.toLowerCase() === 'type:makeup');
-	});
-
-let homeFullPosts$ = homePosts$
-		.merge(coverPosts$);
 
 
 
