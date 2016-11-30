@@ -17,67 +17,32 @@ import Rx from 'rxjs/Rx';
 import React from 'react';
 import ReactDOM from 'react-dom';
 
-router.addRoute('', displayHome ); 
-router.addRoute('news', displayNews ); 
-router.addRoute('look/{lookId}', displayLook ); 
-
-console.log('init');
+import { PostItem, PostItemList}  from './react/postItem.js'
+import { Post } from './post.js';
 
 const _default_blog_id = 'bourjois-en-uk.tumblr.com'; //'kemicalish.tumblr.com'; 
 const _default_api_key = 's69VTn11sdita3PVXC39QIuSzuc7rNjI814UDygEnd6knXo1dQ'; //'h4kvLlA1sViuXYHOqWrtyrHEgB4JlgP73a8qR7TIzsqpy8IIS8';
 const _default_blog_name = 'bourjois-en-uk';
 
-import { PostItem, PostItemList}  from './react/postItem.js'
+router.addRoute('', displayHome ); 
+router.addRoute('news', displayNews ); 
+router.addRoute('look/{lookId}', displayLook ); 
 
+//attention, distinct will prevent calling the same endpoint AGAIN
+//TODO: add a validDurationToken => make it with distinctUntilChanged ?
+var tumblrApiEndpointStream = new Rx.Subject().distinct();
 
-var posts = [
-	{
-		id:1,
-		title:'post 1'
-	},
-	{
-		id:2,
-		title:'post 2'
-	},
-	{
-		id:3,
-		title:'post 3'
-	},
-];
+let tumblrResponseStream = tumblrApiEndpointStream
+	.flatMap(endpoint => Rx.Observable.fromPromise($.getJSON(endpoint)));
 
-var postsComponents = posts.map(p => (<PostItem key={p.id} title={p.title} />))
-
-ReactDOM.render(
-  <PostItemList posts={postsComponents} />,
-  document.getElementById('react-root')
-);
-
-setTimeout(()=>{
-	console.log('AGAIN!');
-	posts[0].title = 'MY NEW TITLE!';
-	postsComponents = posts.map(p => (<PostItem key={p.id} title={p.title} />))
-	ReactDOM.render(
-		<PostItemList posts={postsComponents} />,
-		document.getElementById('react-root')
-	);
-},2000)
-
-
-var tumblrApiEndpointStream = new Rx.Subject();
-
-let tumblrResponseStream =  tumblrApiEndpointStream.flatMap(endpoint => Rx.Observable.fromPromise($.getJSON(endpoint)));
-
-let rawPostStream = tumblrResponseStream.flatMap(response => Rx.Observable.create(observer =>{
-	_.each(response.response.posts, p => observer.next(p));
-}));
+let rawPostStream = tumblrResponseStream
+	.flatMap(response => Rx.Observable.create(observer => {
+		_.each(response.response.posts, p => observer.next(p));
+	}));
 
 let formatedPostStream = rawPostStream.flatMap(post => Rx.Observable.create(observer =>{
 	try{
-		observer.next({
-			id:post.id,
-			title:post.title,
-			tags:post.tags
-		});
+		observer.next(Post.clean(post))
 	}
 	catch(err){
 		observer.error(err);
@@ -87,29 +52,32 @@ let formatedPostStream = rawPostStream.flatMap(post => Rx.Observable.create(obse
 let homePostsStream = formatedPostStream.filter(post => {
 	console.log('homePostsStream');
 	return _.find(post.tags, t => t.toLowerCase() === 'home');
-}).scan((list, post) => list.concat(post), []);
+});
 
 let coverPostsStream = formatedPostStream.filter(post => {
 	console.log('coverPostsStream');
 	return _.find(post.tags, t => t.toLowerCase() === 'type:cover');
 });
 
-
-homePostsStream.subscribe(posts => {
+function renderPosts(posts){
 	console.log(posts);
-	let postElems = posts.map(p => (<PostItem key={p.id} id={p.id} title={p.title} />) ); 
+	let postElems = _.chain(posts)
+					.orderBy(['ts'], ['desc'])
+					.map(p => (<PostItem key={p.id} post={p} />) )
+					.value(); 
 	ReactDOM.render(
 		<PostItemList posts={postElems} />,
 		$('.items-home')[0]
 	);
-});
+}
 
-/*
-homePostsStream.subscribe(posts => $('.items-home').html(itemsTPL({
-	posts:posts
-})));
-*/
-//coverPostsStream.subscribe(p => $('.items-stories').html(itemTPL(p)));
+//HOW do we swicth from rendering home page to rendering an other one?
+//TODO: we should run it only based on a previous context
+homePostsStream
+	.merge(coverPostsStream)
+	.scan((list, post) => list.concat(post), [])
+	.subscribe(renderPosts);
+
 
 var bindLinks = (entry) => new Promise((resolve, reject) => {
 	$('.go-page').on('click', e => {
@@ -122,6 +90,7 @@ var bindLinks = (entry) => new Promise((resolve, reject) => {
 function displayHome(){	
 	console.log('HOME!');
 	tumblrApiEndpointStream.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=home&notes_info=true`);
+	tumblrApiEndpointStream.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=type:COVER&notes_info=true`);
 }
 
 function displayNews(){	

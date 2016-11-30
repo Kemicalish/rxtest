@@ -22,7 +22,7 @@ export class PostItemList extends React.Component {
 export class PostItem extends React.Component {
     render(){
       return (
-        <div className="item" >[{this.props.id}] {this.props.title}</div>
+        <div className="item" ><div className="post-img" ></div>{this.props.post.img} [{this.props.post.id}] {this.props.post.title}</div>
       );
     }
 }
