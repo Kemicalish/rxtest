@@ -30,39 +30,55 @@ router.addRoute('look/{lookId}', displayLook );
 
 //attention, distinct will prevent calling the same endpoint AGAIN
 //TODO: add a validDurationToken => make it with distinctUntilChanged ?
-var tumblrApiEndpointStream = new Rx.Subject().distinct();
+var tumblrApiEndpoint$ = new Rx.Subject().distinct();
 
-let tumblrResponseStream = tumblrApiEndpointStream
+let tumblrResponse$ = tumblrApiEndpoint$
 	.flatMap(endpoint => Rx.Observable.fromPromise($.getJSON(endpoint)))
-	.publish(); //this stream is multicasted ro prevent mutliple api call from different subscribers
+	.publish(); //this stream is multicasted to prevent mutliple api call from different subscribers
 
-tumblrResponseStream.connect();
+tumblrResponse$.connect();
 	
 
-let rawPostStream = tumblrResponseStream
+let rawPost$ = tumblrResponse$
 	.flatMap(response => Rx.Observable.create(observer => {
-		_.each(response.response.posts, p => observer.next(p));
+		console.log('############# rawPost: ', response);
+		try{
+			_.each(response.response.posts, p => observer.next(p));
+			observer.complete();
+		}
+		catch (err) {
+			observer.error(err);
+		}
 	}));
 
-let formatedPostStream = rawPostStream.flatMap(post => Rx.Observable.create(observer =>{
-	try{
-		observer.next(Post.clean(post))
-	}
-	catch(err){
-		observer.error(err);
-	}
-}))
+let formatedPost$ = rawPost$
+	.flatMap(post => Rx.Observable.create(observer => {
+		console.log('formatedPost: ', post.id, post.slug);
+		try {
+			observer.next(Post.clean(post));
+			observer.complete();
+		}
+		catch (err) {
+			observer.error(err);
+		}
+	}))
 
-let homePostsStream = formatedPostStream.filter(post => {
-	console.log('homePostsStream');
-	return _.find(post.tags, t => t.toLowerCase() === 'home');
-});
+let homePosts$ = formatedPost$
+	.filter(post => {
+		console.log('homePosts$', post.id);
+		return _.find(post.tags, t => t.toLowerCase() === 'home');
+	});
 
-let coverPostsStream = formatedPostStream.filter(post => {
-	console.log('coverPostsStream');
-	return _.find(post.tags, t => t.toLowerCase() === 'type:cover');
-});
+let coverPosts$ = formatedPost$
+	.filter(post => {
+		console.log('coverPosts$', post.id);
+		return _.find(post.tags, t => t.toLowerCase() === 'type:cover');
+	});
 
+/**
+ * @selector string : 
+ * return a function taking an enumerable of post items, and rendering them within the selector node(s) 
+ */
 function renderPosts(selector){
 	return  posts => {
 		console.log(posts);
@@ -70,10 +86,14 @@ function renderPosts(selector){
 						.orderBy(['ts'], ['desc'])
 						.map(p => (<PostItem key={p.id} post={p} />) )
 						.value(); 
-		ReactDOM.render(
-			<PostItemList posts={postElems} />,
-			document.querySelector(selector)
-		);
+
+		_.each(document.querySelectorAll(selector), domNode => {
+			ReactDOM.render(
+				<PostItemList posts={postElems} />,
+				domNode
+			);
+		})
+		
 	}
 }
 
@@ -90,25 +110,26 @@ const scanList = [(list, post) => list.concat(post), []];
 
 function displayHome(){	
 	console.log('HOME!');
-	tumblrApiEndpointStream.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=home&notes_info=true`);
-	tumblrApiEndpointStream.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=type:COVER&notes_info=true`);
+	tumblrApiEndpoint$.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=home&notes_info=true`);
+	tumblrApiEndpoint$.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=type:COVER&notes_info=true`);
 
-	homePostsStream
-		.merge(coverPostsStream)
+	homePosts$
+		.merge(coverPosts$)
+		.bufferTime(1000)
 		.scan(...scanList)
-		.subscribe(renderPosts('.items-home'));
+		.subscribe(renderPosts('.items-home'), console.error);
 }
 
 function displayNews(){	
-	tumblrApiEndpointStream.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=type:PROMO&notes_info=true`);
+	tumblrApiEndpoint$.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=type:PROMO&notes_info=true`);
 } 
 
 function displayLook(){	
-	tumblrApiEndpointStream.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=type:COVER&notes_info=true`);
+	tumblrApiEndpoint$.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=type:COVER&notes_info=true`);
 
-	coverPostsStream
+	coverPosts$
 		.scan(...scanList)
-		.subscribe(renderPosts('.items-stories'));
+		.subscribe(renderPosts('.items-stories'), console.error);
 } 
 
 
