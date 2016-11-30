@@ -33,7 +33,11 @@ router.addRoute('look/{lookId}', displayLook );
 var tumblrApiEndpointStream = new Rx.Subject().distinct();
 
 let tumblrResponseStream = tumblrApiEndpointStream
-	.flatMap(endpoint => Rx.Observable.fromPromise($.getJSON(endpoint)));
+	.flatMap(endpoint => Rx.Observable.fromPromise($.getJSON(endpoint)))
+	.publish(); //this stream is multicasted ro prevent mutliple api call from different subscribers
+
+tumblrResponseStream.connect();
+	
 
 let rawPostStream = tumblrResponseStream
 	.flatMap(response => Rx.Observable.create(observer => {
@@ -59,24 +63,19 @@ let coverPostsStream = formatedPostStream.filter(post => {
 	return _.find(post.tags, t => t.toLowerCase() === 'type:cover');
 });
 
-function renderPosts(posts){
-	console.log(posts);
-	let postElems = _.chain(posts)
-					.orderBy(['ts'], ['desc'])
-					.map(p => (<PostItem key={p.id} post={p} />) )
-					.value(); 
-	ReactDOM.render(
-		<PostItemList posts={postElems} />,
-		$('.items-home')[0]
-	);
+function renderPosts(selector){
+	return  posts => {
+		console.log(posts);
+		let postElems = _.chain(posts)
+						.orderBy(['ts'], ['desc'])
+						.map(p => (<PostItem key={p.id} post={p} />) )
+						.value(); 
+		ReactDOM.render(
+			<PostItemList posts={postElems} />,
+			document.querySelector(selector)
+		);
+	}
 }
-
-//HOW do we swicth from rendering home page to rendering an other one?
-//TODO: we should run it only based on a previous context
-homePostsStream
-	.merge(coverPostsStream)
-	.scan((list, post) => list.concat(post), [])
-	.subscribe(renderPosts);
 
 
 var bindLinks = (entry) => new Promise((resolve, reject) => {
@@ -87,10 +86,17 @@ var bindLinks = (entry) => new Promise((resolve, reject) => {
 	resolve(entry);
 });
 
+const scanList = [(list, post) => list.concat(post), []]; 
+
 function displayHome(){	
 	console.log('HOME!');
 	tumblrApiEndpointStream.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=home&notes_info=true`);
 	tumblrApiEndpointStream.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=type:COVER&notes_info=true`);
+
+	homePostsStream
+		.merge(coverPostsStream)
+		.scan(...scanList)
+		.subscribe(renderPosts('.items-home'));
 }
 
 function displayNews(){	
@@ -99,6 +105,10 @@ function displayNews(){
 
 function displayLook(){	
 	tumblrApiEndpointStream.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=type:COVER&notes_info=true`);
+
+	coverPostsStream
+		.scan(...scanList)
+		.subscribe(renderPosts('.items-stories'));
 } 
 
 
