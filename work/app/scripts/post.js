@@ -1,4 +1,5 @@
 const _				= require('lodash');
+const imgTagSrcRegex = /<img[^>]+src="([^"]+)"[^>]*>/g;
 
 function clean (raw){
     return {
@@ -12,9 +13,25 @@ function clean (raw){
     }
 }
 
-function getImg (raw){
-    if(raw.photos && raw.photos.length >= 1 && raw.photos[0].alt_sizes && raw.photos[0].alt_sizes.length >= 2 && raw.photos[0].alt_sizes[2] )
-        return raw.photos[0].alt_sizes[2].url
+function getImg (p){
+    let imgList = [], img;
+
+    imgTagSrcRegex.lastIndex = 0;
+    if ( img = imgTagSrcRegex.exec( p.body ) ) {
+        imgList.push( img[1] );
+    }
+
+	return imgList.length > 0 ? imgList[0] : getVideoPoster(p);
+}
+
+
+function getVideoLink (p){
+	return p.video && p.video.youtube && p.video.youtube.video_id ? p.video.youtube.video_id : null;
+}
+
+function getVideoPoster (p) {
+	let vid = getVideoLink(p);
+	return vid ? `http://img.youtube.com/vi/${vid}/0.jpg` : null ;
 }
 
 export var Post = {
