@@ -5,7 +5,8 @@ function clean (raw){
         title:raw.title,
         tags:raw.tags,
         ts:raw.timestamp,
-        img:getImg(raw)
+        img:getImg(raw),
+        token:raw.token
     }
 }
 

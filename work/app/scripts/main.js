@@ -27,6 +27,15 @@ const _default_blog_name = 'bourjois-en-uk';
 router.addRoute('', displayHome ); 
 router.addRoute('news', displayNews ); 
 router.addRoute('look/{lookId}', displayLook ); 
+router.addRoute('makeup', displayMakeup ); 
+
+//const scanList = [(list, post) => list.concat(post), []]; 
+
+const scanList = [(list, post) => {
+	return _.find(list, p => p.id === post.id) ? list : list.concat(post);
+}, []]; 
+
+const distinctPosts = (p1, p2) => p1.id != p2.id;
 
 //attention, distinct will prevent calling the same endpoint AGAIN
 //TODO: add a validDurationToken => make it with distinctUntilChanged ?
@@ -38,18 +47,22 @@ let tumblrResponse$ = tumblrApiEndpoint$
 
 tumblrResponse$.connect();
 	
+let requestId = 0;
 
 let rawPost$ = tumblrResponse$
-	.flatMap(response => Rx.Observable.create(observer => {
+	.flatMap(response => {
 		console.log('############# rawPost: ', response);
+		let token = ++requestId;
 		try{
-			_.each(response.response.posts, p => observer.next(p));
-			observer.complete();
+			return _.map(response.response.posts, p => _.merge({token:token},p)) ;
 		}
 		catch (err) {
-			observer.error(err);
+			console.error('RAW POST ERROR: ', err)
+			return Rx.Observable.throw(err);
 		}
-	}));
+	})
+	
+
 
 let formatedPost$ = rawPost$
 	.flatMap(post => Rx.Observable.create(observer => {
@@ -63,40 +76,97 @@ let formatedPost$ = rawPost$
 		}
 	}))
 
+
 let homePosts$ = formatedPost$
 	.filter(post => {
-		console.log('homePosts$', post.id);
+		console.log('homePosts$', post.id, post.token);
 		return _.find(post.tags, t => t.toLowerCase() === 'home');
 	});
 
 let coverPosts$ = formatedPost$
 	.filter(post => {
-		console.log('coverPosts$', post.id);
+		console.log('coverPosts$', post.id, post.token);
 		return _.find(post.tags, t => t.toLowerCase() === 'type:cover');
 	});
+
+let promoPosts$ = formatedPost$
+	.filter(post => {
+		console.log('promoPosts$', post.id, post.token);
+		return _.find(post.tags, t => t.toLowerCase() === 'type:promo');
+	});
+
+let makeupPosts$ = formatedPost$
+	.filter(post => {
+		console.log('makeupPosts$', post.id, post.token);
+		return _.find(post.tags, t => t.toLowerCase() === 'type:makeup');
+	});
+
+homePosts$
+		.merge(coverPosts$)
+		.scan(...scanList)
+		.subscribe(renderPosts('.items-home', 'HOME POSTS'), console.error);
+
+
+coverPosts$
+		.scan(...scanList)
+		.subscribe(renderPosts('.items-stories', 'COVER POSTS'), console.error);
+
+promoPosts$
+		.scan(...scanList)
+		.subscribe(renderPosts('.items-news', 'NEWS POSTS'), console.error);
+
+makeupPosts$
+		.scan(...scanList)
+		.subscribe(renderPosts('.items-makeup', 'MAKEUP POSTS'), console.error);
+
+
+function displayHome(){	
+	console.log('HOME!');
+	tumblrApiEndpoint$.next(getEndpointFromTag('home'));
+	tumblrApiEndpoint$.next(getEndpointFromTag('type:COVER'));
+}
+
+function displayNews(){	
+	console.log('NEWS!');
+	tumblrApiEndpoint$.next(getEndpointFromTag('type:PROMO'));
+} 
+
+function displayLook(){
+	console.log('COVERS!');	
+	tumblrApiEndpoint$.next(getEndpointFromTag('type:COVER'));
+} 
+
+function displayMakeup(){
+	console.log('MAKEUP!');	
+	tumblrApiEndpoint$.next(getEndpointFromTag('type:MAKEUP'));
+} 
+
+
+function getEndpointFromTag(tag){
+	return `https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=${tag}&notes_info=true`;
+}
 
 /**
  * @selector string : 
  * return a function taking an enumerable of post items, and rendering them within the selector node(s) 
  */
-function renderPosts(selector){
-	return  posts => {
-		console.log(posts);
+function renderPosts(selector, title) {
+	return posts => {
+		console.log('renderPosts:', selector, posts.map(p => p.id).sort());
 		let postElems = _.chain(posts)
-						.orderBy(['ts'], ['desc'])
-						.map(p => (<PostItem key={p.id} post={p} />) )
-						.value(); 
+			.orderBy(['ts'], ['desc'])
+			//.uniqBy(p => p.id) //TODO: this works but should be done upstream
+			.map(p => (<PostItem key={p.id} post={p} />))
+			.value();
 
 		_.each(document.querySelectorAll(selector), domNode => {
 			ReactDOM.render(
-				<PostItemList posts={postElems} />,
+				<PostItemList title={title} posts={postElems} />,
 				domNode
 			);
 		})
-		
 	}
 }
-
 
 var bindLinks = (entry) => new Promise((resolve, reject) => {
 	$('.go-page').on('click', e => {
@@ -105,32 +175,6 @@ var bindLinks = (entry) => new Promise((resolve, reject) => {
 	});
 	resolve(entry);
 });
-
-const scanList = [(list, post) => list.concat(post), []]; 
-
-function displayHome(){	
-	console.log('HOME!');
-	tumblrApiEndpoint$.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=home&notes_info=true`);
-	tumblrApiEndpoint$.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=type:COVER&notes_info=true`);
-
-	homePosts$
-		.merge(coverPosts$)
-		.bufferTime(1000)
-		.scan(...scanList)
-		.subscribe(renderPosts('.items-home'), console.error);
-}
-
-function displayNews(){	
-	tumblrApiEndpoint$.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=type:PROMO&notes_info=true`);
-} 
-
-function displayLook(){	
-	tumblrApiEndpoint$.next(`https://api.tumblr.com/v2/blog/${_default_blog_id}/posts?callback=?&api_key=${_default_api_key}&tag=type:COVER&notes_info=true`);
-
-	coverPosts$
-		.scan(...scanList)
-		.subscribe(renderPosts('.items-stories'), console.error);
-} 
 
 
 $(document).ready(function($){

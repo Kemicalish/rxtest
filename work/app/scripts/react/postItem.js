@@ -11,7 +11,7 @@ export class PostItemList extends React.Component {
     render(){
       return (
         <div className="post-list" >
-          <div>List Title: {this.props.title}</div>
+          <div>{this.props.title}</div>
           {this.props.posts}
         </div>
       );
@@ -22,7 +22,9 @@ export class PostItemList extends React.Component {
 export class PostItem extends React.Component {
     render(){
       return (
-        <div className="item" ><div className="post-img" ></div>{this.props.post.img} [{this.props.post.id}] {this.props.post.title}</div>
+        <div className="item">
+          <div className="post-img" ></div>{this.props.post.img} [{this.props.post.id}] {this.props.post.title}
+        </div>
       );
     }
 }
